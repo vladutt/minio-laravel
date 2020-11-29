@@ -1,0 +1,69 @@
+version: "3.7"
+
+services:
+
+    storage-webserver:
+        image: nginx:mainline-alpine
+        container_name: storage-webserver
+        restart: unless-stopped
+        depends_on:
+            - storage-app
+        networks:
+            - storage-net
+        ports:
+            - 8080:80
+        volumes:
+            - ./:/var/www/html
+            - ./nginx.sample.conf:/etc/nginx/nginx.conf
+
+    storage-app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: storage-app
+        restart: unless-stopped
+        user: www-data
+        networks:
+            - storage-net
+        volumes:
+            - ./:/var/www/html
+
+    storage-mysql:
+        image: mysql:latest
+        container_name: storage-mysql
+        volumes:
+            - db_data:/var/lib/mysql
+        restart: unless-stopped
+        ports:
+        - 3306:3306
+        expose:
+          - 3306
+        networks:
+          - storage-net
+        environment:
+            MYSQL_ROOT_PASSWORD: rootpass
+            MYSQL_DATABASE: storage
+            MYSQL_USER: storage
+            MYSQL_PASSWORD: storage
+
+    minio:
+        image: minio/minio:latest
+        container_name: storage-cdn
+        ports:
+          - 9999:9000
+        volumes:
+          - cdn_data:/data
+        networks:
+          - storage-net
+        environment:
+            MINIO_ACCESS_KEY: minioadmin
+            MINIO_SECRET_KEY: minioadmin
+        command: server /data
+
+volumes:
+    db_data:
+    cdn_data:
+
+networks:
+    storage-net:
+        driver: bridge
